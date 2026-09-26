@@ -3,8 +3,7 @@ const {
   GatewayIntentBits,
   REST,
   Routes,
-  SlashCommandBuilder,
-  AttachmentBuilder
+  SlashCommandBuilder
 } = require("discord.js");
 
 const TOKEN = process.env.DISCORD_TOKEN;
@@ -307,6 +306,10 @@ const raftEvents = [
   "Organization lasts less than five minutes"
 ];
 
+// =========================
+// GAME SETTINGS
+// =========================
+
 const gamePools = {
   dbd: dbdEvents,
   tlou: tlouEvents,
@@ -314,12 +317,16 @@ const gamePools = {
 };
 
 const gameNames = {
+  general: "GENERAL GAMING",
   dbd: "DEAD BY DAYLIGHT",
   tlou: "THE LAST OF US",
   raft: "RAFT"
 };
 
-// Fisher-Yates shuffle — better than sort(Math.random)
+// =========================
+// CARD GENERATION
+// =========================
+
 function shuffle(array) {
   const copy = [...array];
 
@@ -336,21 +343,28 @@ function pickRandom(array, amount) {
 }
 
 function makeCard(game) {
-  const events = [
-    ...pickRandom(streamEvents, 8),
-    ...pickRandom(generalEvents, 8),
-    ...pickRandom(gamePools[game], 8)
-  ];
+  let events;
+
+  if (game === "general") {
+    events = [
+      ...pickRandom(streamEvents, 12),
+      ...pickRandom(generalEvents, 12)
+    ];
+  } else {
+    events = [
+      ...pickRandom(streamEvents, 8),
+      ...pickRandom(generalEvents, 8),
+      ...pickRandom(gamePools[game], 8)
+    ];
+  }
 
   const shuffled = shuffle(events);
 
-  // Center square = index 12 on a 25-square board.
   shuffled.splice(12, 0, "⭐ OSHAY MOMENT ⭐");
 
   return shuffled;
 }
 
-// Makes a readable 5x5 text grid for Discord.
 function formatCard(card) {
   let output = "";
 
@@ -368,6 +382,10 @@ function formatCard(card) {
   return output;
 }
 
+// =========================
+// SLASH COMMANDS
+// =========================
+
 const commands = [
   new SlashCommandBuilder()
     .setName("ping")
@@ -382,12 +400,17 @@ const commands = [
         .setDescription("What is Oshay playing?")
         .setRequired(true)
         .addChoices(
-          { name: "Dead by Daylight", value: "dbd" },
-          { name: "The Last of Us", value: "tlou" },
-          { name: "Raft", value: "raft" }
+          { name: "🎮 General Gaming", value: "general" },
+          { name: "🔪 Dead by Daylight", value: "dbd" },
+          { name: "🍄 The Last of Us", value: "tlou" },
+          { name: "🦈 Raft", value: "raft" }
         )
     )
 ].map(command => command.toJSON());
+
+// =========================
+// BOT READY
+// =========================
 
 client.once("ready", async () => {
   console.log(`Logged in as ${client.user.tag}`);
@@ -406,6 +429,10 @@ client.once("ready", async () => {
   }
 });
 
+// =========================
+// COMMAND HANDLING
+// =========================
+
 client.on("interactionCreate", async interaction => {
   if (!interaction.isChatInputCommand()) return;
 
@@ -414,6 +441,7 @@ client.on("interactionCreate", async interaction => {
       content: "🏓 Pong! Stream Bingo is alive!",
       ephemeral: true
     });
+
     return;
   }
 
