@@ -3,7 +3,11 @@ const {
   GatewayIntentBits,
   REST,
   Routes,
-  SlashCommandBuilder
+  SlashCommandBuilder,
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
+  MessageFlags
 } = require("discord.js");
 
 const TOKEN = process.env.DISCORD_TOKEN;
@@ -18,9 +22,9 @@ const client = new Client({
   intents: [GatewayIntentBits.Guilds]
 });
 
-// =========================
-// STREAM EVENTS
-// =========================
+// ======================================================
+// EVENT POOLS
+// ======================================================
 
 const streamEvents = [
   "Chat bullies Oshay",
@@ -71,10 +75,6 @@ const streamEvents = [
   "Oshay admits chat was right",
   "Somebody makes an unspellable noise"
 ];
-
-// =========================
-// GENERAL GAME EVENTS
-// =========================
 
 const generalEvents = [
   "Oshay dies stupidly",
@@ -127,10 +127,6 @@ const generalEvents = [
   "Oshay misses something directly in front of him"
 ];
 
-// =========================
-// DEAD BY DAYLIGHT
-// =========================
-
 const dbdEvents = [
   "Oshay gets jumpscared by the killer",
   "Oshay runs directly into the killer",
@@ -158,10 +154,6 @@ const dbdEvents = [
   "Teammate refuses to leave",
   "Everyone should have just fucking left"
 ];
-
-// =========================
-// THE LAST OF US
-// =========================
 
 const tlouEvents = [
   "Oshay wastes ammo",
@@ -195,10 +187,6 @@ const tlouEvents = [
   "Oshay runs out of ammo mid-fight",
   "Oshay chooses violence when stealth was working"
 ];
-
-// =========================
-// RAFT
-// =========================
 
 const raftEvents = [
   "Oshay gets bitten by the shark",
@@ -306,9 +294,9 @@ const raftEvents = [
   "Organization lasts less than five minutes"
 ];
 
-// =========================
+// ======================================================
 // GAME SETTINGS
-// =========================
+// ======================================================
 
 const gamePools = {
   dbd: dbdEvents,
@@ -323,9 +311,20 @@ const gameNames = {
   raft: "RAFT"
 };
 
-// =========================
+const gameEmojis = {
+  general: "🎮",
+  dbd: "🔪",
+  tlou: "🍄",
+  raft: "🦈"
+};
+
+// Stores active cards while the bot is running.
+// Key = Discord user ID.
+const activeCards = new Map();
+
+// ======================================================
 // CARD GENERATION
-// =========================
+// ======================================================
 
 function shuffle(array) {
   const copy = [...array];
@@ -360,12 +359,13 @@ function makeCard(game) {
 
   const shuffled = shuffle(events);
 
-  shuffled.splice(12, 0, "⭐ OSHAY MOMENT ⭐");
+  // Square 13 / array index 12 is always the free space.
+  shuffled.splice(12, 0, "⭐ FREE SPACE — OSHAY MOMENT ⭐");
 
   return shuffled;
 }
 
-function formatCard(card) {
+function formatCard(card, marked) {
   let output = "";
 
   for (let row = 0; row < 5; row++) {
@@ -373,7 +373,9 @@ function formatCard(card) {
 
     for (let col = 0; col < 5; col++) {
       const index = row * 5 + col;
-      output += `⬜ **${index + 1}.** ${card[index]}\n`;
+      const symbol = marked.has(index) ? "✅" : "⬜";
+
+      output += `${symbol} **${index + 1}.** ${card[index]}\n`;
     }
 
     output += "\n";
@@ -382,9 +384,75 @@ function formatCard(card) {
   return output;
 }
 
-// =========================
+// ======================================================
+// BUTTONS
+// ======================================================
+
+function makeButtons(marked) {
+  const rows = [];
+
+  for (let row = 0; row < 5; row++) {
+    const actionRow = new ActionRowBuilder();
+
+    for (let col = 0; col < 5; col++) {
+      const index = row * 5 + col;
+      const isFree = index === 12;
+      const isMarked = marked.has(index);
+
+      const button = new ButtonBuilder()
+        .setCustomId(`bingo_${index}`)
+        .setLabel(isFree ? "⭐ 13" : isMarked ? `✓ ${index + 1}` : `${index + 1}`)
+        .setStyle(
+          isFree
+            ? ButtonStyle.Primary
+            : isMarked
+              ? ButtonStyle.Success
+              : ButtonStyle.Secondary
+        )
+        .setDisabled(isFree);
+
+      actionRow.addComponents(button);
+    }
+
+    rows.push(actionRow);
+  }
+
+  return rows;
+}
+
+// ======================================================
+// BINGO CHECK
+// ======================================================
+
+const bingoLines = [
+  // Rows
+  [0, 1, 2, 3, 4],
+  [5, 6, 7, 8, 9],
+  [10, 11, 12, 13, 14],
+  [15, 16, 17, 18, 19],
+  [20, 21, 22, 23, 24],
+
+  // Columns
+  [0, 5, 10, 15, 20],
+  [1, 6, 11, 16, 21],
+  [2, 7, 12, 17, 22],
+  [3, 8, 13, 18, 23],
+  [4, 9, 14, 19, 24],
+
+  // Diagonals
+  [0, 6, 12, 18, 24],
+  [4, 8, 12, 16, 20]
+];
+
+function hasBingo(marked) {
+  return bingoLines.some(line =>
+    line.every(index => marked.has(index))
+  );
+}
+
+// ======================================================
 // SLASH COMMANDS
-// =========================
+// ======================================================
 
 const commands = [
   new SlashCommandBuilder()
@@ -408,9 +476,9 @@ const commands = [
     )
 ].map(command => command.toJSON());
 
-// =========================
+// ======================================================
 // BOT READY
-// =========================
+// ======================================================
 
 client.once("ready", async () => {
   console.log(`Logged in as ${client.user.tag}`);
@@ -418,45 +486,3 @@ client.once("ready", async () => {
   const rest = new REST({ version: "10" }).setToken(TOKEN);
 
   try {
-    await rest.put(
-      Routes.applicationCommands(CLIENT_ID),
-      { body: commands }
-    );
-
-    console.log("Slash commands registered!");
-  } catch (error) {
-    console.error("Couldn't register slash commands:", error);
-  }
-});
-
-// =========================
-// COMMAND HANDLING
-// =========================
-
-client.on("interactionCreate", async interaction => {
-  if (!interaction.isChatInputCommand()) return;
-
-  if (interaction.commandName === "ping") {
-    await interaction.reply({
-      content: "🏓 Pong! Stream Bingo is alive!",
-      ephemeral: true
-    });
-
-    return;
-  }
-
-  if (interaction.commandName === "bingo") {
-    const game = interaction.options.getString("game");
-    const card = makeCard(game);
-
-    await interaction.reply({
-      content:
-        `🎮 **${gameNames[game]} — STREAM BINGO**\n` +
-        `*Only you can see your randomized card.*\n\n` +
-        formatCard(card),
-      ephemeral: true
-    });
-  }
-});
-
-client.login(TOKEN);
