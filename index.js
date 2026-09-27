@@ -15,7 +15,8 @@ const {
   generalEvents,
   dbdEvents,
   tlouEvents,
-  raftEvents
+  raftEvents,
+  minecraftEvents
 } = require("./events");
 
 const TOKEN = process.env.DISCORD_TOKEN;
@@ -30,28 +31,40 @@ const client = new Client({
   intents: [GatewayIntentBits.Guilds]
 });
 
+// ======================================================
+// GAME SETTINGS
+// ======================================================
+
 const gamePools = {
   dbd: dbdEvents,
   tlou: tlouEvents,
-  raft: raftEvents
+  raft: raftEvents,
+  minecraft: minecraftEvents
 };
 
 const gameNames = {
   general: "GENERAL GAMING",
   dbd: "DEAD BY DAYLIGHT",
   tlou: "THE LAST OF US",
-  raft: "RAFT"
+  raft: "RAFT",
+  minecraft: "MINECRAFT"
 };
 
 const gameEmojis = {
   general: "🎮",
   dbd: "🔪",
   tlou: "🍄",
-  raft: "🦈"
+  raft: "🦈",
+  minecraft: "⛏️"
 };
 
-// Active cards live here while the bot is running.
+// Stores active cards while the bot is running.
+// One active card per Discord user.
 const activeCards = new Map();
+
+// ======================================================
+// CARD GENERATION
+// ======================================================
 
 function shuffle(array) {
   const copy = [...array];
@@ -86,11 +99,15 @@ function makeCard(game) {
 
   const card = shuffle(events);
 
-  // Center square: #13
+  // Square #13 is always the free space.
   card.splice(12, 0, "FREE SPACE — OSHAY MOMENT");
 
   return card;
 }
+
+// ======================================================
+// CARD DISPLAY
+// ======================================================
 
 function formatCard(card, marked) {
   let output = "";
@@ -111,6 +128,10 @@ function formatCard(card, marked) {
   return output;
 }
 
+// ======================================================
+// BUTTONS
+// ======================================================
+
 function makeButtons(marked) {
   const rows = [];
 
@@ -119,27 +140,27 @@ function makeButtons(marked) {
 
     for (let col = 0; col < 5; col++) {
       const index = row * 5 + col;
-      const free = index === 12;
-      const checked = marked.has(index);
+      const isFree = index === 12;
+      const isMarked = marked.has(index);
 
       actionRow.addComponents(
         new ButtonBuilder()
           .setCustomId(`bingo_${index}`)
           .setLabel(
-            free
+            isFree
               ? "⭐ 13"
-              : checked
+              : isMarked
                 ? `✓ ${index + 1}`
                 : `${index + 1}`
           )
           .setStyle(
-            free
+            isFree
               ? ButtonStyle.Primary
-              : checked
+              : isMarked
                 ? ButtonStyle.Success
                 : ButtonStyle.Secondary
           )
-          .setDisabled(free)
+          .setDisabled(isFree)
       );
     }
 
@@ -149,19 +170,26 @@ function makeButtons(marked) {
   return rows;
 }
 
+// ======================================================
+// BINGO CHECK
+// ======================================================
+
 const bingoLines = [
+  // Rows
   [0, 1, 2, 3, 4],
   [5, 6, 7, 8, 9],
   [10, 11, 12, 13, 14],
   [15, 16, 17, 18, 19],
   [20, 21, 22, 23, 24],
 
+  // Columns
   [0, 5, 10, 15, 20],
   [1, 6, 11, 16, 21],
   [2, 7, 12, 17, 22],
   [3, 8, 13, 18, 23],
   [4, 9, 14, 19, 24],
 
+  // Diagonals
   [0, 6, 12, 18, 24],
   [4, 8, 12, 16, 20]
 ];
@@ -171,6 +199,10 @@ function hasBingo(marked) {
     line.every(index => marked.has(index))
   );
 }
+
+// ======================================================
+// SLASH COMMANDS
+// ======================================================
 
 const commands = [
   new SlashCommandBuilder()
@@ -189,10 +221,15 @@ const commands = [
           { name: "🎮 General Gaming", value: "general" },
           { name: "🔪 Dead by Daylight", value: "dbd" },
           { name: "🍄 The Last of Us", value: "tlou" },
-          { name: "🦈 Raft", value: "raft" }
+          { name: "🦈 Raft", value: "raft" },
+          { name: "⛏️ Minecraft", value: "minecraft" }
         )
     )
 ].map(command => command.toJSON());
+
+// ======================================================
+// BOT READY
+// ======================================================
 
 client.once("ready", async () => {
   console.log(`Logged in as ${client.user.tag}`);
@@ -211,15 +248,20 @@ client.once("ready", async () => {
   }
 });
 
+// ======================================================
+// INTERACTIONS
+// ======================================================
+
 client.on("interactionCreate", async interaction => {
   try {
 
-    // -----------------------
+    // --------------------------------------------------
     // SLASH COMMANDS
-    // -----------------------
+    // --------------------------------------------------
 
     if (interaction.isChatInputCommand()) {
 
+      // /ping
       if (interaction.commandName === "ping") {
         await interaction.reply({
           content: "🏓 Pong! Stream Bingo is alive!",
@@ -229,8 +271,22 @@ client.on("interactionCreate", async interaction => {
         return;
       }
 
+      // /bingo
       if (interaction.commandName === "bingo") {
         const game = interaction.options.getString("game");
+
+        if (
+          game !== "general" &&
+          !gamePools[game]
+        ) {
+          await interaction.reply({
+            content: "That bingo game doesn't exist.",
+            flags: MessageFlags.Ephemeral
+          });
+
+          return;
+        }
+
         const card = makeCard(game);
 
         // Free center starts marked.
@@ -256,9 +312,9 @@ client.on("interactionCreate", async interaction => {
       }
     }
 
-    // -----------------------
+    // --------------------------------------------------
     // BINGO BUTTONS
-    // -----------------------
+    // --------------------------------------------------
 
     if (interaction.isButton()) {
 
@@ -282,12 +338,13 @@ client.on("interactionCreate", async interaction => {
         interaction.customId.replace("bingo_", "")
       );
 
-      // Free square cannot be toggled.
+      // Center free space cannot be toggled.
       if (index === 12) {
         await interaction.deferUpdate();
         return;
       }
 
+      // Mark/unmark square.
       if (state.marked.has(index)) {
         state.marked.delete(index);
       } else {
@@ -300,7 +357,8 @@ client.on("interactionCreate", async interaction => {
         `${gameEmojis[state.game]} **${gameNames[state.game]} — STREAM BINGO**\n`;
 
       if (bingo) {
-        header += `\n🎉 **BINGO! YOU GOT FIVE IN A ROW!** 🎉\n`;
+        header +=
+          `\n🎉 **BINGO! YOU GOT FIVE IN A ROW!** 🎉\n`;
       }
 
       await interaction.update({
@@ -311,7 +369,7 @@ client.on("interactionCreate", async interaction => {
         components: makeButtons(state.marked)
       });
 
-      // Announce the first bingo publicly.
+      // Publicly announce their first bingo.
       if (bingo && !state.bingoAnnounced) {
         state.bingoAnnounced = true;
 
@@ -342,9 +400,16 @@ client.on("interactionCreate", async interaction => {
         });
       }
     } catch (replyError) {
-      console.error("Couldn't send error response:", replyError);
+      console.error(
+        "Couldn't send error response:",
+        replyError
+      );
     }
   }
 });
+
+// ======================================================
+// LOGIN
+// ======================================================
 
 client.login(TOKEN);
