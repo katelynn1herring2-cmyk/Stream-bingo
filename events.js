@@ -1,6 +1,3 @@
-// ======================================================
-// STREAM EVENTS
-// ======================================================
 
 const streamEvents = [
   "Chat bullies Oshay",
@@ -51,10 +48,6 @@ const streamEvents = [
   "Oshay admits chat was right",
   "Somebody makes an unspellable noise"
 ];
-
-// ======================================================
-// GENERAL GAME EVENTS
-// ======================================================
 
 const generalEvents = [
   "Oshay dies stupidly",
@@ -107,10 +100,6 @@ const generalEvents = [
   "Oshay misses something directly in front of him"
 ];
 
-// ======================================================
-// DEAD BY DAYLIGHT
-// ======================================================
-
 const dbdEvents = [
   "Oshay gets jumpscared by the killer",
   "Oshay runs directly into the killer",
@@ -138,10 +127,6 @@ const dbdEvents = [
   "Teammate refuses to leave",
   "Everyone should have just fucking left"
 ];
-
-// ======================================================
-// THE LAST OF US
-// ======================================================
 
 const tlouEvents = [
   "Oshay wastes ammo",
@@ -176,9 +161,72 @@ const tlouEvents = [
   "Oshay chooses violence when stealth was working"
 ];
 
-// ======================================================
-// RAFT
-// ======================================================
+// THE LAST OF US PART II
+
+const tlou2Events = [
+  "Oshay forgets he can go prone",
+  "Oshay gets spotted while crawling",
+  "Oshay hides in tall grass and still gets caught",
+  "Oshay forgets to dodge",
+  "Oshay dodges directly into another enemy",
+  "Oshay gets absolutely destroyed in melee combat",
+  "Oshay breaks glass unnecessarily",
+  "Oshay breaks glass and alerts enemies",
+  "Oshay walks straight into a tripwire",
+  "Oshay nearly walks into a tripwire",
+  "Chat spots a tripwire before Oshay",
+  "Oshay throws a bottle at the wrong time",
+  "Oshay throws a brick at something unnecessarily",
+  "Oshay uses a bottle instead of a brick",
+  "Oshay forgets he has throwable distractions",
+  "Oshay gets spotted by a WLF patrol",
+  "Oshay gets attacked by a WLF dog",
+  "A dog tracks Oshay's scent",
+  "Oshay panics because of a dog",
+  "Oshay tries to hide from a dog unsuccessfully",
+  "Oshay hears a Seraphite whistle and panics",
+  "Oshay has no idea where the Seraphites are",
+  "Oshay gets ambushed by a Seraphite",
+  "Oshay underestimates a Seraphite",
+  "Oshay gets attacked with an arrow",
+  "Oshay hears Stalkers and refuses to move",
+  "A Stalker appears out of nowhere",
+  "Oshay gets cornered by Stalkers",
+  "Oshay gets jumpscared by an infected hiding in a wall",
+  "Oshay underestimates a Shambler",
+  "Oshay gets caught in a Shambler's acid cloud",
+  "Oshay wastes ammunition on an infected",
+  "Oshay gets caught reloading during combat",
+  "Oshay tries to stealth-kill the wrong enemy",
+  "Oshay's stealth plan immediately falls apart",
+  "Oshay accidentally alerts an entire patrol",
+  "Oshay forgets to craft something important",
+  "Oshay upgrades a weapon and immediately regrets his choice",
+  "Oshay gets ambushed while using a workbench",
+  "Oshay refuses to trust another workbench",
+  "Oshay finds a safe but doesn't know the combination",
+  "Chat figures out a safe combination first",
+  "Oshay misses an obvious safe-code clue",
+  "Oshay gets distracted searching for collectibles",
+  "Oshay spends forever looking for a collectible",
+  "Oshay discovers a collectible he nearly missed",
+  "Oshay struggles with a rope puzzle",
+  "Oshay throws a rope in the wrong direction",
+  "Oshay overlooks an obvious climbing route",
+  "Oshay gets lost exploring Seattle",
+  "Oshay accidentally doubles back into an area he's already searched",
+  "Oshay expects an empty room and immediately regrets entering",
+  "Oshay gets attacked while crafting",
+  "Oshay panics and uses the wrong weapon",
+  "Oshay uses a valuable explosive on a weak enemy",
+  "Oshay sets a trap that doesn't work as intended",
+  "Oshay survives an encounter with almost no supplies",
+  "Oshay says an area is clear when it absolutely isn't",
+  "An enemy calls out a fallen teammate's name",
+  "Oshay gets emotionally invested in an NPC",
+  "Oshay pauses to process something that just happened",
+  "Oshay argues with a character's decision"
+];
 
 const raftEvents = [
   "Oshay gets bitten by the shark",
@@ -285,10 +333,6 @@ const raftEvents = [
   "Oshay says “we need to be organized”",
   "Organization lasts less than five minutes"
 ];
-
-// ======================================================
-// MINECRAFT
-// ======================================================
 
 const minecraftEvents = [
   "Oshay gets blown up by a Creeper",
@@ -406,15 +450,12 @@ const minecraftEvents = [
   "Minecraft genuinely screws Oshay over"
 ];
 
-// ======================================================
-// EXPORT EVENT POOLS
-// ======================================================
-
 module.exports = {
   streamEvents,
   generalEvents,
   dbdEvents,
   tlouEvents,
+  tlou2Events,
   raftEvents,
   minecraftEvents
 };
