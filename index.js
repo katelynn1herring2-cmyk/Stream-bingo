@@ -1,3 +1,4 @@
+
 const {
   Client,
   GatewayIntentBits,
@@ -15,6 +16,7 @@ const {
   generalEvents,
   dbdEvents,
   tlouEvents,
+  tlou2Events,
   raftEvents,
   minecraftEvents
 } = require("./events");
@@ -38,6 +40,7 @@ const client = new Client({
 const gamePools = {
   dbd: dbdEvents,
   tlou: tlouEvents,
+  tlou2: [...tlouEvents, ...tlou2Events],
   raft: raftEvents,
   minecraft: minecraftEvents
 };
@@ -45,7 +48,8 @@ const gamePools = {
 const gameNames = {
   general: "GENERAL GAMING",
   dbd: "DEAD BY DAYLIGHT",
-  tlou: "THE LAST OF US",
+  tlou: "THE LAST OF US PART I",
+  tlou2: "THE LAST OF US PART II",
   raft: "RAFT",
   minecraft: "MINECRAFT"
 };
@@ -54,20 +58,20 @@ const gameEmojis = {
   general: "🎮",
   dbd: "🔪",
   tlou: "🍄",
+  tlou2: "🍄",
   raft: "🦈",
   minecraft: "⛏️"
 };
 
-// Stores active cards while the bot is running.
-// One active card per Discord user.
+// One active card per player while the bot is running.
 const activeCards = new Map();
 
 // ======================================================
 // CARD GENERATION
 // ======================================================
 
-function shuffle(array) {
-  const copy = [...array];
+function shuffle(items) {
+  const copy = [...items];
 
   for (let i = copy.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
@@ -77,29 +81,25 @@ function shuffle(array) {
   return copy;
 }
 
-function pickRandom(array, amount) {
-  return shuffle(array).slice(0, amount);
+function pickRandom(items, count) {
+  return shuffle(items).slice(0, count);
 }
 
 function makeCard(game) {
-  let events;
-
-  if (game === "general") {
-    events = [
-      ...pickRandom(streamEvents, 12),
-      ...pickRandom(generalEvents, 12)
-    ];
-  } else {
-    events = [
-      ...pickRandom(streamEvents, 8),
-      ...pickRandom(generalEvents, 8),
-      ...pickRandom(gamePools[game], 8)
-    ];
-  }
+  const events = game === "general"
+    ? [
+        ...pickRandom(streamEvents, 12),
+        ...pickRandom(generalEvents, 12)
+      ]
+    : [
+        ...pickRandom(streamEvents, 8),
+        ...pickRandom(generalEvents, 8),
+        ...pickRandom(gamePools[game], 8)
+      ];
 
   const card = shuffle(events);
 
-  // Square #13 is always the free space.
+  // Square #13 is the automatic free space.
   card.splice(12, 0, "FREE SPACE — OSHAY MOMENT");
 
   return card;
@@ -110,26 +110,27 @@ function makeCard(game) {
 // ======================================================
 
 function formatCard(card, marked) {
-  let output = "";
+  let result = "";
 
   for (let row = 0; row < 5; row++) {
-    output += `**ROW ${row + 1}**\n`;
+    result += `**ROW ${row + 1}**\n`;
 
     for (let col = 0; col < 5; col++) {
       const index = row * 5 + col;
-      const symbol = marked.has(index) ? "✅" : "⬜";
 
-      output += `${symbol} **${index + 1}.** ${card[index]}\n`;
+      result +=
+        `${marked.has(index) ? "✅" : "⬜"} ` +
+        `**${index + 1}.** ${card[index]}\n`;
     }
 
-    output += "\n";
+    result += "\n";
   }
 
-  return output;
+  return result;
 }
 
 // ======================================================
-// BUTTONS
+// INTERACTIVE BUTTONS
 // ======================================================
 
 function makeButtons(marked) {
@@ -140,27 +141,27 @@ function makeButtons(marked) {
 
     for (let col = 0; col < 5; col++) {
       const index = row * 5 + col;
-      const isFree = index === 12;
-      const isMarked = marked.has(index);
+      const free = index === 12;
+      const checked = marked.has(index);
 
       actionRow.addComponents(
         new ButtonBuilder()
           .setCustomId(`bingo_${index}`)
           .setLabel(
-            isFree
+            free
               ? "⭐ 13"
-              : isMarked
+              : checked
                 ? `✓ ${index + 1}`
                 : `${index + 1}`
           )
           .setStyle(
-            isFree
+            free
               ? ButtonStyle.Primary
-              : isMarked
+              : checked
                 ? ButtonStyle.Success
                 : ButtonStyle.Secondary
           )
-          .setDisabled(isFree)
+          .setDisabled(free)
       );
     }
 
@@ -171,25 +172,25 @@ function makeButtons(marked) {
 }
 
 // ======================================================
-// BINGO CHECK
+// BINGO DETECTION
 // ======================================================
 
 const bingoLines = [
-  // Rows
+  // Horizontal
   [0, 1, 2, 3, 4],
   [5, 6, 7, 8, 9],
   [10, 11, 12, 13, 14],
   [15, 16, 17, 18, 19],
   [20, 21, 22, 23, 24],
 
-  // Columns
+  // Vertical
   [0, 5, 10, 15, 20],
   [1, 6, 11, 16, 21],
   [2, 7, 12, 17, 22],
   [3, 8, 13, 18, 23],
   [4, 9, 14, 19, 24],
 
-  // Diagonals
+  // Diagonal
   [0, 6, 12, 18, 24],
   [4, 8, 12, 16, 20]
 ];
@@ -220,7 +221,8 @@ const commands = [
         .addChoices(
           { name: "🎮 General Gaming", value: "general" },
           { name: "🔪 Dead by Daylight", value: "dbd" },
-          { name: "🍄 The Last of Us", value: "tlou" },
+          { name: "🍄 The Last of Us Part I", value: "tlou" },
+          { name: "🍄 The Last of Us Part II", value: "tlou2" },
           { name: "🦈 Raft", value: "raft" },
           { name: "⛏️ Minecraft", value: "minecraft" }
         )
@@ -244,7 +246,10 @@ client.once("ready", async () => {
 
     console.log("Slash commands registered!");
   } catch (error) {
-    console.error("Couldn't register slash commands:", error);
+    console.error(
+      "Couldn't register slash commands:",
+      error
+    );
   }
 });
 
@@ -288,8 +293,6 @@ client.on("interactionCreate", async interaction => {
         }
 
         const card = makeCard(game);
-
-        // Free center starts marked.
         const marked = new Set([12]);
 
         activeCards.set(interaction.user.id, {
@@ -301,8 +304,10 @@ client.on("interactionCreate", async interaction => {
 
         await interaction.reply({
           content:
-            `${gameEmojis[game]} **${gameNames[game]} — STREAM BINGO**\n` +
-            `*Only you can see your card. Tap the numbered buttons as events happen.*\n\n` +
+            `${gameEmojis[game]} ` +
+            `**${gameNames[game]} — STREAM BINGO**\n` +
+            "*Only you can see your card. " +
+            "Tap the numbered buttons as events happen.*\n\n" +
             formatCard(card, marked),
           components: makeButtons(marked),
           flags: MessageFlags.Ephemeral
@@ -316,18 +321,17 @@ client.on("interactionCreate", async interaction => {
     // BINGO BUTTONS
     // --------------------------------------------------
 
-    if (interaction.isButton()) {
-
-      if (!interaction.customId.startsWith("bingo_")) {
-        return;
-      }
-
+    if (
+      interaction.isButton() &&
+      interaction.customId.startsWith("bingo_")
+    ) {
       const state = activeCards.get(interaction.user.id);
 
       if (!state) {
         await interaction.reply({
           content:
-            "That bingo card is no longer active. Run `/bingo` for a new one!",
+            "That card is no longer active. " +
+            "Run `/bingo` for a new one!",
           flags: MessageFlags.Ephemeral
         });
 
@@ -335,16 +339,25 @@ client.on("interactionCreate", async interaction => {
       }
 
       const index = Number(
-        interaction.customId.replace("bingo_", "")
+        interaction.customId.slice("bingo_".length)
       );
 
-      // Center free space cannot be toggled.
+      if (
+        !Number.isInteger(index) ||
+        index < 0 ||
+        index > 24
+      ) {
+        await interaction.deferUpdate();
+        return;
+      }
+
+      // Center free space stays marked.
       if (index === 12) {
         await interaction.deferUpdate();
         return;
       }
 
-      // Mark/unmark square.
+      // Toggle square.
       if (state.marked.has(index)) {
         state.marked.delete(index);
       } else {
@@ -353,33 +366,36 @@ client.on("interactionCreate", async interaction => {
 
       const bingo = hasBingo(state.marked);
 
-      let header =
-        `${gameEmojis[state.game]} **${gameNames[state.game]} — STREAM BINGO**\n`;
-
-      if (bingo) {
-        header +=
-          `\n🎉 **BINGO! YOU GOT FIVE IN A ROW!** 🎉\n`;
-      }
+      const header =
+        `${gameEmojis[state.game]} ` +
+        `**${gameNames[state.game]} — STREAM BINGO**\n` +
+        (
+          bingo
+            ? "\n🎉 **BINGO! YOU GOT FIVE IN A ROW!** 🎉\n"
+            : ""
+        );
 
       await interaction.update({
         content:
           header +
-          `*Tap a numbered button to mark or unmark a square.*\n\n` +
+          "*Tap a numbered button to mark or unmark a square.*\n\n" +
           formatCard(state.card, state.marked),
         components: makeButtons(state.marked)
       });
 
-      // Publicly announce their first bingo.
+      // Announce only the first completed bingo.
       if (bingo && !state.bingoAnnounced) {
         state.bingoAnnounced = true;
 
         try {
           await interaction.channel.send(
-            `🎉 **BINGO!** ${interaction.user} completed a Stream Bingo line during **${gameNames[state.game]}**!`
+            `🎉 **BINGO!** ${interaction.user} ` +
+            "completed a Stream Bingo line during " +
+            `**${gameNames[state.game]}**!`
           );
         } catch (error) {
           console.error(
-            "Couldn't post public bingo announcement:",
+            "Couldn't post bingo announcement:",
             error
           );
         }
@@ -391,19 +407,19 @@ client.on("interactionCreate", async interaction => {
   } catch (error) {
     console.error("Interaction error:", error);
 
-    try {
-      if (!interaction.replied && !interaction.deferred) {
+    if (!interaction.replied && !interaction.deferred) {
+      try {
         await interaction.reply({
           content:
             "Something went wrong with Stream Bingo. Try again!",
           flags: MessageFlags.Ephemeral
         });
+      } catch (replyError) {
+        console.error(
+          "Couldn't send error response:",
+          replyError
+        );
       }
-    } catch (replyError) {
-      console.error(
-        "Couldn't send error response:",
-        replyError
-      );
     }
   }
 });
